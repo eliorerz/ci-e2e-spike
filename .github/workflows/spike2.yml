@@ -1,0 +1,38 @@
+name: Spike2
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      number:
+        required: true
+      mode:
+        description: orphan | success | waiting
+        default: success
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+jobs:
+  pt-job:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "sha=$GITHUB_SHA ref=$GITHUB_REF pr_head=${{ github.event.pull_request.head.sha }}"
+  post:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - run: |
+          sha=$(gh api "repos/$REPO/pulls/${{ inputs.number }}" --jq .head.sha)
+          case "${{ inputs.mode }}" in
+            orphan|waiting)
+              gh api "repos/$REPO/check-runs" -f name=E2E -f head_sha="$sha" -f status=in_progress \
+                -f "output[title]=Waiting: ${{ inputs.mode }}" -f "output[summary]=reason text" --jq .id ;;
+            success)
+              gh api "repos/$REPO/check-runs" -f name=E2E -f head_sha="$sha" -f status=completed -f conclusion=success \
+                -f "output[title]=Passed" -f "output[summary]=ok" --jq .id ;;
+          esac
