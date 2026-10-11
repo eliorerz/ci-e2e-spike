@@ -1,0 +1,50 @@
+name: E2E main (spike)
+on:
+  workflow_dispatch:
+    inputs:
+      number:
+        description: Pull request number
+        required: true
+      outcome:
+        description: success or failure (what the fake E2E does)
+        default: success
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: read
+
+concurrency:
+  group: e2e-spike-${{ inputs.number }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      NUMBER: ${{ inputs.number }}
+    steps:
+      - name: Report E2E as running on the PR head
+        id: start
+        run: |
+          sha=$(gh api "repos/$REPO/pulls/$NUMBER" --jq .head.sha)
+          id=$(gh api "repos/$REPO/check-runs" -f name=E2E -f head_sha="$sha" -f status=in_progress \
+            -f "output[title]=E2E running" -f "output[summary]=started by run $GITHUB_RUN_ID" --jq .id)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"; echo "id=$id" >> "$GITHUB_OUTPUT"
+      - name: The fake E2E
+        env:
+          OUTCOME: ${{ inputs.outcome }}
+        run: |
+          sleep 45
+          [ "$OUTCOME" = success ]
+      - name: Report the result (even when cancelled)
+        if: always()
+        env:
+          ID: ${{ steps.start.outputs.id }}
+          STATUS: ${{ job.status }}
+        run: |
+          case "$STATUS" in success) c=success;; cancelled) c=cancelled;; *) c=failure;; esac
+          gh api -X PATCH "repos/$REPO/check-runs/$ID" -f status=completed -f conclusion="$c" \
+            -f "output[title]=E2E $c" -f "output[summary]=run $GITHUB_RUN_ID"
