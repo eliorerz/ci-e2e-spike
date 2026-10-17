@@ -1,0 +1,10 @@
+name: who
+description: Prints where this action came from
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        echo "MARKER=callee-action"
+        echo "action_path=${GITHUB_ACTION_PATH}"
+        ls "${GITHUB_ACTION_PATH}/.." >/dev/null 2>&1 && echo "action dir ok"

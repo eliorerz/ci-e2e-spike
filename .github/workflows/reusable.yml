@@ -1,0 +1,37 @@
+name: spike reusable
+on:
+  workflow_call:
+    secrets:
+      SPIKE_SECRET:
+        required: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Contexts
+        run: |
+          echo "github.repository=${{ github.repository }}"
+          echo "github.workflow_ref=${{ github.workflow_ref }}"
+          echo "github.workflow_sha=${{ github.workflow_sha }}"
+          echo "github.sha=${{ github.sha }}"
+          echo "job.workflow_repository=${{ job.workflow_repository }}"
+          echo "job.workflow_sha=${{ job.workflow_sha }}"
+          echo "job.workflow_ref=${{ job.workflow_ref }}"
+          echo "event_name=${{ github.event_name }}"
+          echo "secret_present=${{ secrets.SPIKE_SECRET != '' }}"
+      - name: Checkout caller repo (default)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          path: caller-checkout
+      - name: Local path ./.github/actions/who (after checkout of default repo)
+        id: local
+        continue-on-error: true
+        uses: ./caller-checkout/.github/actions/who
+      - name: Checkout the called workflow repo at its own sha
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: callee-checkout
+      - name: Local path into the callee checkout
+        uses: ./callee-checkout/.github/actions/who
