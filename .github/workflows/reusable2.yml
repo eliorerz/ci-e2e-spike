@@ -1,0 +1,36 @@
+name: spike reusable 2
+on:
+  workflow_call:
+    inputs:
+      ci-name:
+        type: string
+        default: "spike s1 caller"
+    secrets:
+      SPIKE_SECRET:
+        required: false
+permissions: {}
+jobs:
+  ctx:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: spike-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: false
+    permissions:
+      actions: read
+    steps:
+      - name: Context in a called workflow started by workflow_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ github.run_id }}
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "event.action=${{ github.event.action }}"
+          echo "workflow_run.name=${{ github.event.workflow_run.name }}"
+          echo "workflow_run.head_sha=${{ github.event.workflow_run.head_sha }}"
+          echo "workflow_run.event=${{ github.event.workflow_run.event }}"
+          echo "input ci-name=${{ inputs.ci-name }}"
+          echo "name matches input=${{ github.event.workflow_run.name == inputs.ci-name }}"
+          echo "secret_present=${{ secrets.SPIKE_SECRET != '' }}"
+          echo "run_id=${RUN} repository=${{ github.repository }}"
+          echo "--- job names of this run seen through the API:"
+          gh api "repos/${{ github.repository }}/actions/runs/${RUN}/jobs" --jq '.jobs[].name'
