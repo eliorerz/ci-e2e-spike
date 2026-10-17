@@ -35,3 +35,5 @@ jobs:
           path: callee-checkout
       - name: Local path into the callee checkout
         uses: ./callee-checkout/.github/actions/who
+      - name: Dollar-slash syntax, the action of the called workflow's own repository
+        uses: $/.github/actions/who
